@@ -1,0 +1,181 @@
+syntax = "proto3";
+
+package chat;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "./;proto";
+
+
+
+
+//
+// Message Types
+//
+
+message User {
+  string id = 1;
+  string username = 2;
+  string avatar_url = 3;
+}
+
+message Conversation {
+  string id = 1;
+  bool is_group = 2;
+  string name = 3;
+  repeated User participants = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message Message {
+  string id = 1;
+  string conversation_id = 2;
+  User sender = 3;
+  string content = 4;
+  string message_type = 5; // "text", "image", etc.
+  google.protobuf.Timestamp created_at = 6;
+}
+
+//
+// 1. ConversationService
+//
+
+service ConversationService {
+  rpc CreateConversation(CreateConversationRequest) returns (Conversation);
+  rpc GetConversation(GetConversationRequest) returns (Conversation);
+  rpc ListConversations(ListConversationsRequest) returns (ListConversationsResponse);
+  rpc AddParticipants(AddParticipantsRequest) returns (Conversation);
+  rpc RemoveParticipants(RemoveParticipantsRequest) returns (Conversation);
+}
+
+message CreateConversationRequest {
+  repeated string participant_ids = 1;
+  bool is_group = 2;
+  string name = 3;
+}
+
+message GetConversationRequest {
+  string conversation_id = 1;
+}
+
+message ListConversationsRequest {
+  string user_id = 1;
+}
+
+message ListConversationsResponse {
+  repeated Conversation conversations = 1;
+}
+
+message AddParticipantsRequest {
+  string conversation_id = 1;
+  repeated string user_ids = 2;
+}
+
+message RemoveParticipantsRequest {
+  string conversation_id = 1;
+  repeated string user_ids = 2;
+}
+
+//
+// 2. MessageService
+//
+
+service MessageService {
+  rpc SendMessage(SendMessageRequest) returns (Message);
+  rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse);
+  rpc DeleteMessage(DeleteMessageRequest) returns (google.protobuf.Empty);
+  rpc EditMessage(EditMessageRequest) returns (Message);
+}
+
+message SendMessageRequest {
+  string conversation_id = 1;
+  string sender_id = 2;
+  string content = 3;
+  string message_type = 4; // "text", "image", etc.
+}
+
+message ListMessagesRequest {
+  string conversation_id = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message ListMessagesResponse {
+  repeated Message messages = 1;
+}
+
+message DeleteMessageRequest {
+  string message_id = 1;
+}
+
+message EditMessageRequest {
+  string message_id = 1;
+  string new_content = 2;
+}
+
+//
+// 3. MessageStatusService
+//
+
+service MessageStatusService {
+  rpc MarkAsRead(MarkAsReadRequest) returns (google.protobuf.Empty);
+  rpc GetMessageStatus(GetMessageStatusRequest) returns (MessageStatusResponse);
+}
+
+message MarkAsReadRequest {
+  string user_id = 1;
+  string message_id = 2;
+}
+
+message GetMessageStatusRequest {
+  string message_id = 1;
+}
+
+message MessageStatusResponse {
+  repeated ReadStatus read_statuses = 1;
+}
+
+message ReadStatus {
+  string user_id = 1;
+  google.protobuf.Timestamp read_at = 2;
+}
+
+//
+// 4. (Optional) RealtimeService – gRPC Stream
+//
+
+service RealtimeService {
+  rpc MessageStream(stream RealtimeMessageRequest) returns (stream RealtimeMessageResponse);
+}
+
+message RealtimeMessageRequest {
+  oneof event {
+    SendMessageRequest message = 1;
+    TypingEvent typing = 2;
+  }
+}
+
+message RealtimeMessageResponse {
+  oneof event {
+    Message message = 1;
+    TypingEvent typing = 2;
+  }
+}
+
+message TypingEvent {
+  string user_id = 1;
+  string conversation_id = 2;
+  bool is_typing = 3;
+}
+
+service InternalUserService {
+  rpc SyncUser (SyncUserRequest) returns (google.protobuf.Empty);
+}
+
+message SyncUserRequest {
+  string id = 1;
+  string username = 2;
+  string avatar_url = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}

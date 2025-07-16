@@ -1,0 +1,360 @@
+definitions:
+  http.AuthSuccessResponse:
+    properties:
+      expires_at:
+        type: string
+      refresh_token:
+        type: string
+      refresh_token_expires_at:
+        type: string
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/http.UserResponse'
+    type: object
+  http.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  http.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  http.RefreshTokenResponse:
+    properties:
+      expires_at:
+        type: string
+      refresh_expires_at:
+        type: string
+      refresh_token:
+        type: string
+      token:
+        type: string
+    type: object
+  http.RegisterRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      role:
+        enum:
+        - admin
+        - user
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - password
+    - role
+    - username
+    type: object
+  http.ShortenRequest:
+    properties:
+      original_url:
+        type: string
+      short_code:
+        type: string
+    required:
+    - original_url
+    type: object
+  http.ShortenResponse:
+    properties:
+      click_count:
+        type: integer
+      created_at:
+        type: string
+      expired_at:
+        type: string
+      id:
+        type: integer
+      original_url:
+        type: string
+      short_code:
+        type: string
+      short_url:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  http.UserResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      role:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  response.Response:
+    properties:
+      message:
+        type: string
+      result: {}
+    type: object
+info:
+  contact: {}
+paths:
+  /{code}:
+    get:
+      description: Resolve a short code and redirect to the original URL
+      parameters:
+      - description: Short code
+        in: path
+        name: code
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Found
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Redirect to original URL
+      tags:
+      - shortener
+  /api/v1/graphql:
+    post:
+      consumes:
+      - application/json
+      description: Registers GraphQL endpoints for user authentication operations
+      parameters:
+      - description: GraphQL query
+        in: body
+        name: query
+        required: true
+        schema:
+          type: string
+      - description: GraphQL variables
+        in: body
+        name: variables
+        schema:
+          type: object
+      - description: GraphQL operation name
+        in: body
+        name: operationName
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful response
+          schema:
+            type: object
+        "400":
+          description: Error response
+          schema:
+            type: object
+        "401":
+          description: Error response
+          schema:
+            type: object
+      summary: Register GraphQL routes for authentication
+      tags:
+      - auth
+      - graphql
+  /api/v1/graphql/shortener:
+    post:
+      consumes:
+      - application/json
+      description: Registers GraphQL endpoints for URL shortening operations
+      parameters:
+      - description: GraphQL query
+        in: body
+        name: query
+        required: true
+        schema:
+          type: string
+      - description: GraphQL variables
+        in: body
+        name: variables
+        schema:
+          type: object
+      - description: GraphQL operation name
+        in: body
+        name: operationName
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful response
+          schema:
+            type: object
+        "400":
+          description: Error response
+          schema:
+            type: object
+        "404":
+          description: Error response
+          schema:
+            type: object
+      summary: Register GraphQL routes for URL shortener
+      tags:
+      - shortener
+      - graphql
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return JWT and refresh token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: loginRequest
+        required: true
+        schema:
+          $ref: '#/definitions/http.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/http.AuthSuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: User login
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Issue a new JWT and refresh token
+      parameters:
+      - description: Refresh token payload
+        in: body
+        name: refreshTokenRequest
+        required: true
+        schema:
+          $ref: '#/definitions/http.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/http.RefreshTokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Refresh JWT token
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account
+      parameters:
+      - description: Registration info
+        in: body
+        name: registerRequest
+        required: true
+        schema:
+          $ref: '#/definitions/http.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/http.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Register new user
+      tags:
+      - auth
+  /auth/user/{userId}:
+    get:
+      description: Get details of a user by their ID
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/http.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get user by ID
+      tags:
+      - auth
+  /shorten:
+    post:
+      consumes:
+      - application/json
+      description: Generate a short URL for the given original URL
+      parameters:
+      - description: Original URL to shorten
+        in: body
+        name: shortenRequest
+        required: true
+        schema:
+          $ref: '#/definitions/http.ShortenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/http.ShortenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Create a shortened URL
+      tags:
+      - shortener
+swagger: "2.0"
