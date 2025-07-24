@@ -1,8 +1,8 @@
 package http
 
 import (
-	"github.com/ductongnguyen/vivy-chat/internal/chat"
-	"github.com/ductongnguyen/vivy-chat/internal/middleware"
+	"video-call/internal/chat"
+	"video-call/internal/middleware"
 	"github.com/gin-gonic/gin"
 )
 

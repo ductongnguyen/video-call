@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 
-	"github.com/ductongnguyen/vivy-chat/internal/auth"
-	"github.com/ductongnguyen/vivy-chat/internal/models"
+	"video-call/internal/auth"
+	"video-call/internal/models"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
-	pkgErrors "github.com/ductongnguyen/vivy-chat/pkg/errors"
+	pkgErrors "video-call/pkg/errors"
 )
 
 // News Repository

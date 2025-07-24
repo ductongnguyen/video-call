@@ -6,14 +6,14 @@ import (
 	"context"
 	"log"
 
-	"github.com/ductongnguyen/vivy-chat/config"
-	"github.com/ductongnguyen/vivy-chat/internal/server"
-	"github.com/ductongnguyen/vivy-chat/pkg/cache/redis"
-	"github.com/ductongnguyen/vivy-chat/pkg/database/postgres"
-	"github.com/ductongnguyen/vivy-chat/pkg/logger"
+	"video-call/config"
+	"video-call/internal/server"
+	"video-call/pkg/cache/redis"
+	"video-call/pkg/database/postgres"
+	"video-call/pkg/logger"
 	"github.com/joho/godotenv"
 
-	_ "github.com/ductongnguyen/vivy-chat/docs" // Swagger docs import
+	_ "video-call/docs" // Swagger docs import
 )
 
 func main() {

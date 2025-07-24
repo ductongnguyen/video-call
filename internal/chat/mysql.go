@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/ductongnguyen/vivy-chat/internal/models"
+	"video-call/internal/models"
 )
 
 var (

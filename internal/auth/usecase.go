@@ -5,7 +5,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/ductongnguyen/vivy-chat/internal/models"
+	"video-call/internal/models"
 )
 
 // Auth use case

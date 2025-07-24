@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/ductongnguyen/vivy-chat/config"
-	"github.com/ductongnguyen/vivy-chat/internal/chat"
-	"github.com/ductongnguyen/vivy-chat/internal/models"
-	"github.com/ductongnguyen/vivy-chat/pkg/logger"
+	"video-call/config"
+	"video-call/internal/chat"
+	"video-call/internal/models"
+	"video-call/pkg/logger"
 	"github.com/google/uuid"
 )
 

@@ -3,28 +3,31 @@ package server
 import (
 	"context"
 
-	conversationGrpc "github.com/ductongnguyen/vivy-chat/internal/chat/delivery/grpc"
-	conversationHttp "github.com/ductongnguyen/vivy-chat/internal/chat/delivery/http"
-	conversationWs "github.com/ductongnguyen/vivy-chat/internal/chat/delivery/ws"
+	conversationHttp "video-call/internal/chat/delivery/http"
+	conversationWs "video-call/internal/chat/delivery/ws"
 
-	conversationRepository "github.com/ductongnguyen/vivy-chat/internal/chat/repository"
-	conversationUseCase "github.com/ductongnguyen/vivy-chat/internal/chat/usecase"
-	apiMiddlewares "github.com/ductongnguyen/vivy-chat/internal/middleware"
-	proto "github.com/ductongnguyen/vivy-chat/proto/v1/chat"
+	conversationRepository "video-call/internal/chat/repository"
+	conversationUseCase "video-call/internal/chat/usecase"
+	apiMiddlewares "video-call/internal/middleware"
 
-	"github.com/ductongnguyen/vivy-chat/pkg/metric"
-	"github.com/ductongnguyen/vivy-chat/pkg/websocket"
+	"video-call/pkg/metric"
+	"video-call/pkg/websocket"
 	"github.com/gin-contrib/requestid"
 	redis "github.com/redis/go-redis/v9"
 
-	authHttp "github.com/ductongnguyen/vivy-chat/internal/auth/delivery/http"
-	authRepository "github.com/ductongnguyen/vivy-chat/internal/auth/repository"
-	authUseCase "github.com/ductongnguyen/vivy-chat/internal/auth/usecase"
+	authHttp "video-call/internal/auth/delivery/http"
+	authRepository "video-call/internal/auth/repository"
+	authUseCase "video-call/internal/auth/usecase"
 	"github.com/gin-contrib/cors"
 
 	// Swagger UI imports
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+
+	// Thêm import cho signaling
+	signalingRepo "video-call/internal/signaling/repository"
+	signalingUC "video-call/internal/signaling/usecase"
+	signalingDelivery "video-call/internal/signaling/delivery"
 )
 
 // Map Server Handlers
@@ -54,12 +57,15 @@ func (s *Server) MapHandlers() error {
 	authUC := authUseCase.NewUseCase(s.cfg, authRepo, authRedisRepo, s.logger)
 
 	// Init handlers
-	conversationGrpcHandlers := conversationGrpc.NewConversationServiceHandler(s.cfg, conversationUC, s.logger)
 	authHandlers := authHttp.NewHandlers(s.cfg, authUC, s.logger)
 
-	// Register gRPC services
-	proto.RegisterConversationServiceServer(s.grpc, conversationGrpcHandlers)
+	// Khởi tạo signaling
+	callRepo := signalingRepo.NewPostgresRepository(s.db)
+	callUC := signalingUC.NewCallUsecase(callRepo)
+	callREST := signalingDelivery.NewRESTDelivery(callUC)
+	callWS := signalingDelivery.NewWsHandler(callUC)
 
+	// Register gRPC services
 	// Khởi tạo Redis client
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: s.cfg.Redis.Standalone.RedisAddr,
@@ -105,6 +111,11 @@ func (s *Server) MapHandlers() error {
 	// Map chat routes
 	chatGroup := v1.Group("/chat")
 	conversationHttp.MapRoutes(chatGroup, chatHandlers, mw)
+
+	// Đăng ký route signaling REST
+	callREST.RegisterRoutes(v1)
+	// Đăng ký route signaling WebSocket
+	v1.GET("/call/ws", callWS.ServeWs)
 
 	return nil
 }

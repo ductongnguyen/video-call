@@ -1,8 +1,8 @@
 package middleware
 
 import (
-	pkgLogger "github.com/ductongnguyen/vivy-chat/pkg/logger"
-	"github.com/ductongnguyen/vivy-chat/pkg/utils"
+	pkgLogger "video-call/pkg/logger"
+	"video-call/pkg/utils"
 	"github.com/gin-gonic/gin"
 )
 

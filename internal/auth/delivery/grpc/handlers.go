@@ -3,12 +3,12 @@ package grpc
 // import (
 // 	"context"
 
-// 	"github.com/ductongnguyen/vivy-chat/config"
-// 	"github.com/ductongnguyen/vivy-chat/internal/auth"
-// 	"github.com/ductongnguyen/vivy-chat/internal/models"
-// 	"github.com/ductongnguyen/vivy-chat/pkg/logger"
-// 	"github.com/ductongnguyen/vivy-chat/pkg/utils"
-// 	proto "github.com/ductongnguyen/vivy-chat/proto/v1/auth"
+// 	"video-call/config"
+// 	"video-call/internal/auth"
+// 	"video-call/internal/models"
+// 	"video-call/pkg/logger"
+// 	"video-call/pkg/utils"
+// 	proto "video-call/proto/v1/auth"
 // 	"google.golang.org/grpc/codes"
 // 	"google.golang.org/grpc/status"
 // 	"google.golang.org/protobuf/types/known/timestamppb"

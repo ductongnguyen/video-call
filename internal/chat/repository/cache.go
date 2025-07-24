@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"github.com/ductongnguyen/vivy-chat/internal/chat"
-	"github.com/ductongnguyen/vivy-chat/pkg/cache/redis"
+	"video-call/internal/chat"
+	"video-call/pkg/cache/redis"
 )
 
 // redisRepo implements the chat.RedisRepository interface.

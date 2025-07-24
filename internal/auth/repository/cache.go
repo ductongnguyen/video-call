@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/ductongnguyen/vivy-chat/internal/auth"
-	"github.com/ductongnguyen/vivy-chat/internal/models"
-	"github.com/ductongnguyen/vivy-chat/pkg/cache/redis"
+	"video-call/internal/auth"
+	"video-call/internal/models"
+	"video-call/pkg/cache/redis"
 )
 
 // News redis repository

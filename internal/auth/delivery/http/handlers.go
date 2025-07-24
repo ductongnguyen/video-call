@@ -3,12 +3,12 @@ package http
 import (
 	"net/http"
 
-	"github.com/ductongnguyen/vivy-chat/config"
-	"github.com/ductongnguyen/vivy-chat/internal/auth"
-	"github.com/ductongnguyen/vivy-chat/internal/models"
-	"github.com/ductongnguyen/vivy-chat/pkg/logger"
-	"github.com/ductongnguyen/vivy-chat/pkg/response"
-	"github.com/ductongnguyen/vivy-chat/pkg/utils"
+	"video-call/config"
+	"video-call/internal/auth"
+	"video-call/internal/models"
+	"video-call/pkg/logger"
+	"video-call/pkg/response"
+	"video-call/pkg/utils"
 	"github.com/gin-gonic/gin"
 )
 

@@ -19,3 +19,8 @@ CREATE INDEX idx_calls_caller_id ON calls(caller_id);
 CREATE INDEX idx_calls_callee_id ON calls(callee_id);
 CREATE INDEX idx_calls_initiated_id  ON calls(initiated_id );
 CREATE INDEX idx_calls_status ON calls(status); 
+
+-- Unique index: chỉ cho phép 1 cuộc gọi active giữa 2 user tại một thời điểm
+CREATE UNIQUE INDEX uniq_active_call_per_pair
+ON calls(caller_id, callee_id)
+WHERE status IN ('initiated', 'ringing', 'active'); 

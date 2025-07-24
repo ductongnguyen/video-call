@@ -5,7 +5,7 @@ package auth
 import (
 	"context"
 
-	"github.com/ductongnguyen/vivy-chat/internal/models"
+	"video-call/internal/models"
 )
 
 type Repository interface {

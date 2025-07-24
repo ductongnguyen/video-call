@@ -4,8 +4,8 @@ import (
 	"context"
 	"os"
 
-	"github.com/ductongnguyen/vivy-chat/config"
-	"github.com/ductongnguyen/vivy-chat/pkg/converter"
+	"video-call/config"
+	"video-call/pkg/converter"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

@@ -3,7 +3,7 @@ package postgres
 import (
 	"time"
 
-	"github.com/ductongnguyen/vivy-chat/config"
+	"video-call/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )

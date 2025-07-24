@@ -3,7 +3,7 @@ package http
 import (
 	"time"
 
-	"github.com/ductongnguyen/vivy-chat/internal/models"
+	"video-call/internal/models"
 )
 
 type LoginRequest struct {

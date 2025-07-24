@@ -1,7 +1,7 @@
 package delivery
 
 import (
-	"github.com/ductongnguyen/vivy-chat/internal/models"
+	"video-call/internal/models"
 	"gorm.io/datatypes"
 )
 

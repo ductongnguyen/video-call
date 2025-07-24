@@ -1,8 +1,8 @@
 package server
 
 import (
-	"github.com/ductongnguyen/vivy-chat/pkg/cache/redis"
-	"github.com/ductongnguyen/vivy-chat/pkg/logger"
+	"video-call/pkg/cache/redis"
+	"video-call/pkg/logger"
 	"github.com/gin-gonic/gin"
 )
 

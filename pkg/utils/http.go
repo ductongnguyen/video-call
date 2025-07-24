@@ -9,10 +9,10 @@ import (
 	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin"
 
-	"github.com/ductongnguyen/vivy-chat/internal/models"
-	"github.com/ductongnguyen/vivy-chat/pkg/errors"
-	"github.com/ductongnguyen/vivy-chat/pkg/logger"
-	"github.com/ductongnguyen/vivy-chat/pkg/sanitize"
+	"video-call/internal/models"
+	"video-call/pkg/errors"
+	"video-call/pkg/logger"
+	"video-call/pkg/sanitize"
 )
 
 // Get request id from gin context

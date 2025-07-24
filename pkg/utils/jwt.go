@@ -3,8 +3,8 @@ package utils
 import (
 	"time"
 
-	"github.com/ductongnguyen/vivy-chat/config"
-	"github.com/ductongnguyen/vivy-chat/internal/models"
+	"video-call/config"
+	"video-call/internal/models"
 	"github.com/golang-jwt/jwt"
 )
 

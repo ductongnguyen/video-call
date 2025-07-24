@@ -4,11 +4,11 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/ductongnguyen/vivy-chat/internal/chat"
-	"github.com/ductongnguyen/vivy-chat/internal/models"
-	"github.com/ductongnguyen/vivy-chat/pkg/logger"
-	"github.com/ductongnguyen/vivy-chat/pkg/response"
-	"github.com/ductongnguyen/vivy-chat/pkg/utils"
+	"video-call/internal/chat"
+	"video-call/internal/models"
+	"video-call/pkg/logger"
+	"video-call/pkg/response"
+	"video-call/pkg/utils"
 	"github.com/gin-gonic/gin"
 )
 

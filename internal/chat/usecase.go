@@ -4,7 +4,7 @@ package chat
 import (
 	"context"
 
-	"github.com/ductongnguyen/vivy-chat/internal/models"
+	"video-call/internal/models"
 )
 
 // UseCase defines the interface for chat-related business logic.

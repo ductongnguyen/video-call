@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/ductongnguyen/vivy-chat/internal/chat"
-	"github.com/ductongnguyen/vivy-chat/internal/models"
+	"video-call/internal/chat"
+	"video-call/internal/models"
 	"gorm.io/gorm"
 )
 

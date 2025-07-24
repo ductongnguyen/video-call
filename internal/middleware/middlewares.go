@@ -1,8 +1,8 @@
 package middleware
 
 import (
-	"github.com/ductongnguyen/vivy-chat/config"
-	"github.com/ductongnguyen/vivy-chat/pkg/logger"
+	"video-call/config"
+	"video-call/pkg/logger"
 )
 
 // Middleware manager

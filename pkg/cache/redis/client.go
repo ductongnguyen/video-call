@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/ductongnguyen/vivy-chat/config"
+	"video-call/config"
 	"github.com/go-redis/redis/v8"
 )
 

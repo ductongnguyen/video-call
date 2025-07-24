@@ -7,9 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ductongnguyen/vivy-chat/config"
-	"github.com/ductongnguyen/vivy-chat/pkg/cache/redis"
-	"github.com/ductongnguyen/vivy-chat/pkg/logger"
+	"video-call/config"
+	"video-call/pkg/cache/redis"
+	"video-call/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
@@ -54,11 +54,10 @@ func (s *Server) Run() error {
 
 	ctx := context.Background()
 	go func() {
-		s.logger.Infof(ctx, "Server is listening on PORT: %s", s.cfg.Server.Port)
-		ln, _ := net.Listen("tcp", ":"+s.cfg.Server.Port)
-		err := s.gin.RunListener(ln)
+		s.logger.Infof(ctx, "Server is listening on HTTPS PORT: %s", s.cfg.Server.Port)
+		err := s.gin.RunTLS(":"+s.cfg.Server.Port, "cert.pem", "key.pem")
 		if err != nil {
-			s.logger.Fatalf(ctx, "Error starting Server: ", err)
+			s.logger.Fatalf(ctx, "Error starting HTTPS Server: ", err)
 		}
 	}()
 

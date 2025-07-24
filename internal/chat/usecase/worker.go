@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/ductongnguyen/vivy-chat/internal/models"
+	"video-call/internal/models"
 )
 
 type MessageWriterIface interface {

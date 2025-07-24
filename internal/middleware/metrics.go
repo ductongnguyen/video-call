@@ -3,7 +3,7 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/ductongnguyen/vivy-chat/pkg/metric"
+	"video-call/pkg/metric"
 )
 
 // Prometheus metrics middleware
