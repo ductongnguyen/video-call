@@ -6,6 +6,7 @@ import (
 
 	"video-call/internal/auth"
 	"video-call/internal/models"
+
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
@@ -105,4 +106,12 @@ func (r *repo) RevokeRefreshToken(ctx context.Context, token string) error {
 		return err
 	}
 	return nil
+}
+
+func (r *repo) GetUsers(ctx context.Context) ([]*models.User, error) {
+	var users []*models.User
+	if err := r.db.WithContext(ctx).Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
 }

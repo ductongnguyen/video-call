@@ -26,6 +26,8 @@ type ServerConfig struct {
 	AppDomain         string `env:"APP_DOMAIN"`
 	ShortURLExpiredAt int    `env:"SHORT_URL_EXPIRED_AT"`
 	GrpcPort          string `env:"GRPC_PORT"`
+	SslCertPath       string `env:"SSL_CERT_PATH"`
+	SslKeyPath        string `env:"SSL_KEY_PATH"`
 }
 
 // Metrics config

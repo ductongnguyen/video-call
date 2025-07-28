@@ -135,3 +135,8 @@ func (u *usecase) Register(ctx context.Context, user *models.User) (*models.User
 
 	return user, nil
 }
+
+// GetUsers implements auth.UseCase.
+func (u *usecase) GetUsers(ctx context.Context) ([]*models.User, error) {
+	return u.repo.GetUsers(ctx)
+}

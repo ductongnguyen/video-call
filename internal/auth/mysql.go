@@ -17,4 +17,5 @@ type Repository interface {
 	CreateRefreshToken(ctx context.Context, token *models.RefreshToken) error
 	GetRefreshTokenByToken(ctx context.Context, token string) (*models.RefreshToken, error)
 	RevokeRefreshToken(ctx context.Context, token string) error
+	GetUsers(ctx context.Context) ([]*models.User, error)
 }

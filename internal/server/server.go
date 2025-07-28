@@ -55,7 +55,7 @@ func (s *Server) Run() error {
 	ctx := context.Background()
 	go func() {
 		s.logger.Infof(ctx, "Server is listening on HTTPS PORT: %s", s.cfg.Server.Port)
-		err := s.gin.RunTLS(":"+s.cfg.Server.Port, "cert.pem", "key.pem")
+		err := s.gin.Run(":"+s.cfg.Server.Port)
 		if err != nil {
 			s.logger.Fatalf(ctx, "Error starting HTTPS Server: ", err)
 		}

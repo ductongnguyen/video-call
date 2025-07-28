@@ -9,6 +9,7 @@ import (
 	"video-call/pkg/logger"
 	"video-call/pkg/response"
 	"video-call/pkg/utils"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -184,4 +185,14 @@ func (h *handlers) Register(c *gin.Context) {
 
 	responseUser := FromUserModel(user)
 	response.WithOK(c, responseUser)
+}
+
+func (h *handlers) GetUsers(c *gin.Context) {
+	users, err := h.usecase.GetUsers(c.Request.Context())
+	if err != nil {
+		response.WithMappedError(c, err, auth.MapError)
+		return
+	}
+	responseUsers := FromUserModelList(users)
+	response.WithOK(c, responseUsers)
 }

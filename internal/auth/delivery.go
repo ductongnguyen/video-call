@@ -10,4 +10,5 @@ type Handlers interface {
 	Login(c *gin.Context)
 	GetUserByID(c *gin.Context)
 	RefreshToken(c *gin.Context)
+	GetUsers(c *gin.Context)
 }

@@ -13,6 +13,7 @@ type UseCase interface {
 	Register(ctx context.Context, user *models.User) (*models.User, error)
 	Login(ctx context.Context, user *models.User) (*models.User, error)
 	GetUserByID(ctx context.Context, userId string) (*models.User, error)
+	GetUsers(ctx context.Context) ([]*models.User, error)
 
 	// Refresh token methods
 	GenerateRefreshToken(ctx context.Context, userID string) (string, time.Time, error)

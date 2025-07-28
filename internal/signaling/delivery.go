@@ -1,14 +1,9 @@
 package signaling
 
 import (
-    "github.com/gin-gonic/gin"
-    "github.com/gorilla/websocket"
+	"github.com/gin-gonic/gin"
 )
 
-type CallRESTDelivery interface {
-    RegisterRoutes(rg *gin.RouterGroup)
+type Handlers interface {
+	CreateOrJoinCall(c *gin.Context)
 }
-
-type CallWebSocketDelivery interface {
-    HandleWebSocket(conn *websocket.Conn)
-} 
