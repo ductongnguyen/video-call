@@ -108,6 +108,7 @@ func (s *Server) MapHandlers() error {
 
 	// Đăng ký route signaling WebSocket
 	v1.GET("/call/ws", callWS.ServeWs)
+	v1.GET("/call/ws/notifications", wsNotificationHandler.ServeWsNotifications)
 
 	return nil
 }

@@ -1,29 +1,31 @@
 package http
 
 import (
+	"encoding/json"
 	"net/http"
+	"video-call/internal/models"
 	"video-call/internal/signaling"
 	"video-call/pkg/logger"
-    "encoding/json"
+
+	signalingWs "video-call/internal/signaling/delivery/ws"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	signalingWs "video-call/internal/signaling/delivery/ws"
 )
 
 // Handler handles HTTP requests for chat features
 type Handler struct {
-	useCase signaling.UseCase
+	useCase               signaling.UseCase
 	wsNotificationHandler *signalingWs.WsNotificationHandler
-	logger  logger.Logger
+	logger                logger.Logger
 }
 
 // NewHandler creates a new chat HTTP handler
 func NewHandler(useCase signaling.UseCase, wsNotificationHandler *signalingWs.WsNotificationHandler, logger logger.Logger) *Handler {
 	return &Handler{
-		useCase: useCase,
+		useCase:               useCase,
 		wsNotificationHandler: wsNotificationHandler,
-		logger:  logger,
+		logger:                logger,
 	}
 }
 
@@ -49,13 +51,10 @@ func (h *Handler) CreateOrJoinCall(c *gin.Context) {
 		return
 	}
 
-	notificationPayload := gin.H{
-		"type": "ringing",
-		"data": gin.H{
-			"call_id": call.ID.String(),
-			"caller": gin.H{
-				"id": call.CallerID.String(),
-			},
+	notificationPayload := map[string]interface{}{
+		"event": "incoming_call",
+		"data": map[string]string{
+			"callId": call.ID.String(),
 		},
 	}
 
@@ -64,7 +63,15 @@ func (h *Handler) CreateOrJoinCall(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to marshal notification payload"})
 		return
 	}
-	h.wsNotificationHandler.SendMessageToUser(calleeID, payloadBytes)
-
+	err = h.wsNotificationHandler.SendMessageToUser(calleeID, payloadBytes)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send notification"})
+		return
+	}
+	err = h.useCase.UpdateCallStatus(c.Request.Context(), call.ID, models.CallStatusInitiated, models.CallStatusRinging, nil, nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update call status"})
+		return
+	}
 	c.JSON(http.StatusOK, callResponse{Call: call, Role: role})
 }
