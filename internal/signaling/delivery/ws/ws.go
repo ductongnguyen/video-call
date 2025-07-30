@@ -128,6 +128,7 @@ func (h *WsNotificationHandler) unregister(userID, connectionID uuid.UUID) {
 		if client, ok := userConnections[connectionID]; ok {
 			close(client.send)
 			delete(userConnections, connectionID)
+			
 			log.Printf("Notification connection [%s] cleaned up for user [%s]", connectionID, userID)
 		}
 
@@ -165,6 +166,7 @@ func (h *WsNotificationHandler) readPump(userID uuid.UUID, connectionID uuid.UUI
 		}
 
 		if messageType != websocket.TextMessage {
+			log.Printf("Received non-text message from user %s: %v", userID, err)
 			continue
 		}
 
@@ -173,7 +175,6 @@ func (h *WsNotificationHandler) readPump(userID uuid.UUID, connectionID uuid.UUI
 			log.Printf("Error parsing JSON from user %s: %v", userID, err)
 			continue
 		}
-
 		switch msg.Event {
 		case "accept_call":
 			h.handleAcceptCall(userID, msg.Data)
@@ -357,6 +358,7 @@ type WebRTCSignalData struct {
 
 func (h *WsNotificationHandler) handleWebRTCSignal(senderID uuid.UUID, event string, data json.RawMessage) {
 	var signalData WebRTCSignalData
+	log.Println("event: ", event)
 	if err := json.Unmarshal(data, &signalData); err != nil {
 		log.Printf("Error parsing WebRTC signal data from %s: %v", senderID, err)
 		return
@@ -368,13 +370,17 @@ func (h *WsNotificationHandler) handleWebRTCSignal(senderID uuid.UUID, event str
 		return
 	}
 
-	payloadToSend, _ := json.Marshal(map[string]interface{}{
+	payloadToSend, err := json.Marshal(map[string]interface{}{
 		"event": event,
 		"data": map[string]interface{}{
 			"senderId": senderID.String(),
 			"payload":  signalData.Payload,
 		},
 	})
+	if err != nil {
+		log.Printf("Error marshaling WebRTC signal data from %s: %v", senderID, err)
+		return
+	}
 
 	if err := h.SendMessageToUser(targetID, payloadToSend); err != nil {
 		log.Printf("Failed to forward WebRTC signal from %s to %s: %v", senderID, targetID, err)
