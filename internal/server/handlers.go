@@ -61,7 +61,6 @@ func (s *Server) MapHandlers() error {
 	callUC := signalingUC.NewUseCase(s.cfg, callRepo, s.logger)
 	wsNotificationHandler := signalingWs.NewWsNotificationHandler(callUC)
 	callREST := signalingHttp.NewHandler(callUC, wsNotificationHandler, s.logger)
-	callWS := signalingWs.NewWsHandler(callUC)
 
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: s.cfg.Redis.Standalone.RedisAddr,
@@ -107,7 +106,6 @@ func (s *Server) MapHandlers() error {
 	signalingHttp.MapRoutes(signalingGroup, callREST, mw)
 
 	// Đăng ký route signaling WebSocket
-	v1.GET("/call/ws", callWS.ServeWs)
 	v1.GET("/call/ws/notifications", wsNotificationHandler.ServeWsNotifications)
 
 	return nil

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"video-call/internal/models"
@@ -35,6 +36,8 @@ func (r *postgresRepo) UpdateStatus(ctx context.Context, callID uuid.UUID, from,
 	tx := r.db.WithContext(ctx).Model(&models.Call{}).
 		Where("id = ? AND status = ?", callID, from).
 		Updates(updates)
+
+	log.Println(from, to)
 	if tx.Error != nil {
 		return tx.Error
 	}

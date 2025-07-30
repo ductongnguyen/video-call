@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"video-call/internal/models"
 	"video-call/internal/signaling"
@@ -55,6 +56,8 @@ func (h *Handler) CreateOrJoinCall(c *gin.Context) {
 		"event": "incoming_call",
 		"data": map[string]string{
 			"callId": call.ID.String(),
+			"caller": callerID.String(),
+			"callee": calleeID.String(),
 		},
 	}
 
@@ -66,6 +69,7 @@ func (h *Handler) CreateOrJoinCall(c *gin.Context) {
 	err = h.wsNotificationHandler.SendMessageToUser(calleeID, payloadBytes)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send notification"})
+		log.Printf("Failed to send notification: %v", err)
 		return
 	}
 	err = h.useCase.UpdateCallStatus(c.Request.Context(), call.ID, models.CallStatusInitiated, models.CallStatusRinging, nil, nil)

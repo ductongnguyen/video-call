@@ -31,28 +31,10 @@ func (u *usecase) CreateOrJoinCall(ctx context.Context, userA, userB uuid.UUID) 
 	if userA == userB {
 		return nil, "", signaling.ErrPermissionDenied
 	}
-	// Chuẩn hóa caller/callee
 	callerID, calleeID := userA, userB
-	role := "caller"
-	if userA.String() > userB.String() {
-		callerID, calleeID = userB, userA
-		if userA != callerID {
-			role = "callee"
-		}
-	} else if userA != callerID {
-		role = "callee"
-	}
-	// Kiểm tra call active giữa 2 user
-	call, err := u.repo.GetActiveByUserPair(ctx, callerID, calleeID)
-	if err == nil {
-		// Đã có call active, join vào
-		return call, role, nil
-	}
-	if err != signaling.ErrCallNotFound {
-		return nil, "", err
-	}
+
 	// Tạo call mới
-	call = &models.Call{
+	call := &models.Call{
 		CallerID:    callerID,
 		CalleeID:    calleeID,
 		InitiatedID: userA,
@@ -61,7 +43,7 @@ func (u *usecase) CreateOrJoinCall(ctx context.Context, userA, userB uuid.UUID) 
 	if err := u.repo.Create(ctx, call); err != nil {
 		return nil, "", err
 	}
-	return call, role, nil
+	return call, "caller", nil
 }
 
 func (u *usecase) UpdateCallStatus(ctx context.Context, callID uuid.UUID, from, to models.CallStatus, answeredAt, endedAt *time.Time) error {
