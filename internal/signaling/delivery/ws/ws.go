@@ -1,7 +1,6 @@
 package ws
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,380 +8,288 @@ import (
 	"sync"
 	"time"
 
-	"video-call/internal/models"
-	"video-call/internal/signaling"
-
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
+
+type WsNotificationHandler struct {
+	mu    sync.RWMutex
+	rooms map[string]*Room
+}
+
+func NewWsNotificationHandler() *WsNotificationHandler {
+	return &WsNotificationHandler{
+		rooms: make(map[string]*Room),
+	}
+}
+
+func (h *WsNotificationHandler) GetOrCreateRoom(roomID string) *Room {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if room, ok := h.rooms[roomID]; ok {
+		return room
+	}
+
+	room := NewRoom(roomID, h)
+	h.rooms[roomID] = room
+	go room.Run()
+	log.Printf("Room created: %s", roomID)
+	return room
+}
+
+func (h *WsNotificationHandler) removeRoom(roomID string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if _, ok := h.rooms[roomID]; ok {
+		delete(h.rooms, roomID)
+		log.Printf("Room removed as it became empty: %s", roomID)
+	}
+}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins for development
+		return true // Cho phép tất cả các nguồn gốc
 	},
 }
 
-type WsNotificationHandler struct {
-	usecase     signaling.UseCase
-	mu          sync.Mutex
-	connections map[uuid.UUID]map[uuid.UUID]*NotificationClient
-}
-
-func NewWsNotificationHandler(usecase signaling.UseCase) *WsNotificationHandler {
-	return &WsNotificationHandler{
-		usecase:     usecase,
-		connections: make(map[uuid.UUID]map[uuid.UUID]*NotificationClient),
+// ServeWs xử lý các yêu cầu websocket từ người dùng.
+func (h *WsNotificationHandler) ServeWs(c *gin.Context) {
+	roomID := c.Query("roomId")
+	userID := c.Query("userId")
+	fmt.Println(roomID, userID)
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Printf("Failed to upgrade connection: %v", err)
+		return
 	}
-}
 
-type WebSocketMessage struct {
-	Event string          `json:"event"`
-	Data  json.RawMessage `json:"data"`
-}
+	room := h.GetOrCreateRoom(roomID)
+	participant := NewParticipant(userID, room, conn)
 
-type CallEventData struct {
-	CallID string `json:"callId"`
+	room.register <- participant // Đăng ký người tham gia mới vào phòng.
+
+	go participant.writePump()
+	go participant.readPump()
 }
 
 const (
 	writeWait      = 10 * time.Second
 	pongWait       = 60 * time.Second
 	pingPeriod     = (pongWait * 9) / 10
-	maxMessageSize = 512
+	maxMessageSize = 1024 * 10
 )
 
-type NotificationClient struct {
-	conn *websocket.Conn
-	send chan []byte // Hàng đợi gửi tin nhắn để đảm bảo ghi an toàn, tránh race condition.
+// Participant là một người dùng được kết nối vào một Room.
+type Participant struct {
+	userID string // Có thể dùng string hoặc uuid.UUID tùy vào yêu cầu
+	room   *Room
+	conn   *websocket.Conn
+	send   chan []byte // Kênh chứa các tin nhắn gửi đi
 }
 
-func (h *WsNotificationHandler) ServeWsNotifications(c *gin.Context) {
-	userID := c.Query("user_id")
-	if userID == "" {
-		c.String(http.StatusBadRequest, "Missing user_id")
-		return
-	}
-	userIDUUID, err := uuid.Parse(userID)
-	if err != nil {
-		c.String(http.StatusBadRequest, "Invalid user_id")
-		return
-	}
-
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
-	if err != nil {
-		log.Printf("Failed to upgrade notifications connection for user %s: %v", userID, err)
-		return
-	}
-
-	client := &NotificationClient{
-		conn: conn,
-		send: make(chan []byte, 256),
-	}
-	connectionID := uuid.New()
-	h.register(userIDUUID, connectionID, client)
-	log.Printf("Notification connection established for user %s", userIDUUID)
-
-	go h.writePump(userIDUUID, client)
-	h.readPump(userIDUUID, connectionID, client)
-}
-
-func (h *WsNotificationHandler) register(userID, connectionID uuid.UUID, client *NotificationClient) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	// KIỂM TRA PHÒNG THỦ #1: Map ngoài cùng có bị nil không?
-	if h.connections == nil {
-		log.Println("FATAL: h.connections map is nil! This should not happen if NewWsNotificationHandler was used.")
-		// Khởi tạo lại nó để tránh panic, nhưng đây là một dấu hiệu của lỗi nghiêm trọng ở nơi khác.
-		h.connections = make(map[uuid.UUID]map[uuid.UUID]*NotificationClient)
-	}
-
-	userConnections, ok := h.connections[userID]
-	if !ok {
-		// Tạo map con mới
-		userConnections = make(map[uuid.UUID]*NotificationClient)
-		// Gán map con vào map ngoài
-		h.connections[userID] = userConnections
-	}
-
-	// KIỂM TRA PHÒNG THỦ #2: Map con có bị nil không?
-	if userConnections == nil {
-		log.Printf("FATAL: userConnections map is nil for user %s! Race condition suspected.", userID)
-		// Dòng này sẽ gây panic, nhưng log ở trên sẽ cho bạn biết vấn đề.
-	}
-
-	// Dòng gốc gây panic
-	userConnections[connectionID] = client
-}
-
-func (h *WsNotificationHandler) unregister(userID, connectionID uuid.UUID) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	// Kiểm tra xem map của user có tồn tại không
-	if userConnections, ok := h.connections[userID]; ok {
-		// Kiểm tra xem connection cụ thể này có tồn tại không
-		if client, ok := userConnections[connectionID]; ok {
-			close(client.send)
-			delete(userConnections, connectionID)
-			
-			log.Printf("Notification connection [%s] cleaned up for user [%s]", connectionID, userID)
-		}
-
-		// Nếu user không còn kết nối nào khác, xóa luôn map của user đó để tiết kiệm bộ nhớ
-		if len(userConnections) == 0 {
-			delete(h.connections, userID)
-			log.Printf("User [%s] has no more connections, removing from map.", userID)
+func NewParticipant(userID string, room *Room, conn *websocket.Conn) *Participant {
+	for p := range room.participants {
+		if p.userID == userID {
+			delete(room.participants, p)
 		}
 	}
+	return &Participant{
+		userID: userID,
+		room:   room,
+		conn:   conn,
+		send:   make(chan []byte, 256),
+	}
 }
 
-func (h *WsNotificationHandler) readPump(userID uuid.UUID, connectionID uuid.UUID, client *NotificationClient) {
+// readPump đọc tin nhắn từ kết nối websocket và gửi đến phòng.
+func (p *Participant) readPump() {
 	defer func() {
-		h.unregister(userID, connectionID)
-		log.Printf("Notification connection closed for use read %s", userID)
-		client.conn.Close()
+		p.room.unregister <- p
+		p.conn.Close()
 	}()
-
-	client.conn.SetReadLimit(maxMessageSize)
-	err := client.conn.SetReadDeadline(time.Now().Add(pongWait))
-	if err != nil {
-		log.Printf("Failed to set read deadline for user %s: %v", userID, err)
-	}
-	client.conn.SetPongHandler(func(string) error {
-		return client.conn.SetReadDeadline(time.Now().Add(pongWait))
+	p.conn.SetReadLimit(maxMessageSize)
+	p.conn.SetReadDeadline(time.Now().Add(pongWait))
+	p.conn.SetPongHandler(func(string) error {
+		p.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
 	})
 
 	for {
-		messageType, payload, err := client.conn.ReadMessage()
+		_, message, err := p.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("Error reading message from user %s: %v", userID, err)
+				log.Printf("Unexpected close error from %s: %v", p.userID, err)
 			}
 			break
 		}
-
-		if messageType != websocket.TextMessage {
-			log.Printf("Received non-text message from user %s: %v", userID, err)
-			continue
-		}
-
-		var msg WebSocketMessage
-		if err := json.Unmarshal(payload, &msg); err != nil {
-			log.Printf("Error parsing JSON from user %s: %v", userID, err)
-			continue
-		}
-		switch msg.Event {
-		case "accept_call":
-			h.handleAcceptCall(userID, msg.Data)
-		case "decline_call":
-			h.handleDeclineCall(userID, msg.Data)
-		case "end_call":
-			h.handleEndCall(userID, msg.Data)
-		case "webrtc_offer", "webrtc_answer", "ice_candidate":
-			h.handleWebRTCSignal(userID, msg.Event, msg.Data)
-		default:
-			log.Printf("Received unknown event '%s' from user %s", msg.Event, userID)
-		}
+		// Đóng gói tin nhắn cùng với thông tin người gửi và đưa vào kênh broadcast của phòng
+		p.room.broadcast <- &BroadcastMessage{sender: p, payload: message}
 	}
 }
 
-func (h *WsNotificationHandler) writePump(userID uuid.UUID, client *NotificationClient) {
+// writePump ghi tin nhắn từ phòng ra kết nối websocket.
+func (p *Participant) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		client.conn.Close()
+		p.conn.Close()
 	}()
-
 	for {
 		select {
-		case message, ok := <-client.send:
-			_ = client.conn.SetWriteDeadline(time.Now().Add(writeWait))
+		case message, ok := <-p.send:
+			p.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
-				_ = client.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				p.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			if err := client.conn.WriteMessage(websocket.TextMessage, message); err != nil {
-				log.Printf("Write error for user %s: %v", userID, err)
+			if err := p.conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				return
 			}
-
 		case <-ticker.C:
-			_ = client.conn.SetWriteDeadline(time.Now().Add(writeWait))
-			if err := client.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				log.Printf("Ping error for user %s: %v", userID, err)
+			p.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := p.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
 		}
 	}
 }
 
-func (h *WsNotificationHandler) handleAcceptCall(userID uuid.UUID, data json.RawMessage) {
-	var callData CallEventData
-	if err := json.Unmarshal(data, &callData); err != nil {
-		log.Printf("Error parsing accept_call data: %v", err)
+// BroadcastMessage là một tin nhắn cần được phát sóng, chứa thông tin người gửi.
+type BroadcastMessage struct {
+	sender  *Participant
+	payload []byte
+}
+
+type Room struct {
+	id           string
+	hub          *WsNotificationHandler
+	participants map[*Participant]bool
+	broadcast    chan *BroadcastMessage
+	register     chan *Participant
+	unregister   chan *Participant
+}
+
+func NewRoom(id string, hub *WsNotificationHandler) *Room {
+	return &Room{
+		id:           id,
+		hub:          hub,
+		participants: make(map[*Participant]bool),
+		broadcast:    make(chan *BroadcastMessage),
+		register:     make(chan *Participant),
+		unregister:   make(chan *Participant),
+	}
+}
+
+func (r *Room) Run() {
+	for {
+		select {
+		case participant := <-r.register:
+			r.participants[participant] = true
+			log.Printf("Participant %s joined room %s. Total: %d", participant.userID, r.id, len(r.participants))
+			r.notifyParticipantJoined(participant)
+
+		case participant := <-r.unregister:
+			delete(r.participants, participant)
+			close(participant.send)
+			log.Printf("Participant %s left room %s. Total: %d", participant.userID, r.id, len(r.participants))
+			r.notifyParticipantLeft(participant)
+			if len(r.participants) == 0 {
+				r.hub.removeRoom(r.id) // Tự hủy phòng nếu trống
+				return
+			}
+
+		case message := <-r.broadcast:
+			r.handleBroadcast(message)
+		}
+	}
+}
+
+type ServerMessage struct {
+	Event    string      `json:"event"`
+	SenderID string      `json:"senderId,omitempty"` // ID của người gửi gốc
+	Data     interface{} `json:"data"`
+}
+
+// handleBroadcast xử lý một tin nhắn đến và chuyển tiếp nó đến những người khác.
+func (r *Room) handleBroadcast(msg *BroadcastMessage) {
+	var clientMsg map[string]interface{}
+	if err := json.Unmarshal(msg.payload, &clientMsg); err != nil {
+		log.Printf("Could not parse message from %s: %v", msg.sender.userID, err)
 		return
 	}
 
-	callID := uuid.MustParse(callData.CallID)
-	call, err := h.usecase.GetCallByID(context.Background(), callID)
-	if err != nil {
-		log.Printf("Error getting call %s: %v", callID, err)
-		return
+	// Server chỉ quan tâm đến việc đóng gói lại và gửi đi
+	// Client sẽ chịu trách nhiệm về `event` và `data`
+	finalPayload, _ := json.Marshal(ServerMessage{
+		Event:    clientMsg["event"].(string),
+		SenderID: msg.sender.userID, // Luôn đính kèm ID người gửi
+		Data:     clientMsg["data"],
+	})
+
+	for participant := range r.participants {
+		// Gửi cho tất cả mọi người TRỪ người gửi
+		if participant.userID != msg.sender.userID {
+			select {
+			case participant.send <- finalPayload:
+			default:
+				close(participant.send)
+				delete(r.participants, participant)
+			}
+		}
 	}
-	if call.CalleeID != userID {
-		return
-	}
-	if call.Status != models.CallStatusRinging {
-		return
+}
+
+// Gửi thông báo có người mới tham gia đến tất cả những người khác trong phòng.
+func (r *Room) notifyParticipantJoined(joinedParticipant *Participant) {
+	// Lấy danh sách ID của tất cả người tham gia hiện tại
+	allParticipantIDs := make([]string, 0)
+	for p := range r.participants {
+		if p.userID != joinedParticipant.userID {
+			allParticipantIDs = append(allParticipantIDs, p.userID)
+		}
 	}
 
-	err = h.usecase.UpdateCallStatus(context.Background(), call.ID, models.CallStatusRinging, models.CallStatusActive, nil, nil)
-	if err != nil {
-		log.Printf("Error updating call %s: %v", callData.CallID, err)
-		return
-	}
-
-	notificationPayload, _ := json.Marshal(map[string]interface{}{
-		"event": "call_accepted",
-		"data": map[string]string{
-			"callId":    callData.CallID,
-			"startTime": time.Now().Format(time.RFC3339Nano),
+	notification, _ := json.Marshal(ServerMessage{
+		Event: "participant-joined",
+		Data: map[string]string{
+			"joinedId": joinedParticipant.userID,
 		},
 	})
 
-	if err := h.SendMessageToUser(call.InitiatedID, notificationPayload); err != nil {
-		log.Printf("Failed to notify caller %s about call acceptance: %v", call.InitiatedID, err)
-	}
-
-	if err := h.SendMessageToUser(call.CalleeID, notificationPayload); err != nil {
-		log.Printf("Failed to notify callee %s about call acceptance: %v", call.CalleeID, err)
-	}
-}
-
-func (h *WsNotificationHandler) handleDeclineCall(userID uuid.UUID, data json.RawMessage) {
-	var callData CallEventData
-	if err := json.Unmarshal(data, &callData); err != nil {
-		log.Printf("Error parsing decline_call data: %v", err)
-		return
-	}
-
-	callID := uuid.MustParse(callData.CallID)
-	call, err := h.usecase.GetCallByID(context.Background(), callID)
-	if err != nil {
-		log.Printf("Error getting call %s: %v", callData.CallID, err)
-		return
-	}
-
-	err = h.usecase.UpdateCallStatus(context.Background(), call.ID, models.CallStatusRinging, models.CallStatusRejected, nil, nil)
-	if err != nil {
-		log.Printf("Error updating call %s: %v", callData.CallID, err)
-		return
-	}
-
-	notificationPayload, _ := json.Marshal(map[string]interface{}{
-		"event": "call_declined",
-		"data":  map[string]string{"callId": callData.CallID},
-	})
-	if call.InitiatedID != userID {
-		if err := h.SendMessageToUser(call.InitiatedID, notificationPayload); err != nil {
-			log.Printf("Failed to notify caller %s about call rejection: %v", userID, err)
-		}
-	} else {
-		if err := h.SendMessageToUser(call.CalleeID, notificationPayload); err != nil {
-			log.Printf("Failed to notify callee %s about call rejection: %v", userID, err)
+	// Gửi thông báo người mới vào cho những người cũ
+	for p := range r.participants {
+		if p.userID != joinedParticipant.userID {
+			p.send <- notification
 		}
 	}
-}
 
-func (h *WsNotificationHandler) handleEndCall(userID uuid.UUID, data json.RawMessage) {
-	var callData CallEventData
-	if err := json.Unmarshal(data, &callData); err != nil {
-		log.Printf("Error parsing decline_call data: %v", err)
-		return
-	}
-
-	callID := uuid.MustParse(callData.CallID)
-	call, err := h.usecase.GetCallByID(context.Background(), callID)
-	if err != nil {
-		log.Printf("Error getting call %s: %v", callData.CallID, err)
-		return
-	}
-
-	err = h.usecase.UpdateCallStatus(context.Background(), call.ID, models.CallStatusActive, models.CallStatusEnded, nil, nil)
-	if err != nil {
-		log.Printf("Error updating call %s: %v", callData.CallID, err)
-		return
-	}
-
-	notificationPayload, _ := json.Marshal(map[string]interface{}{
-		"event": "call_ended",
-		"data":  map[string]string{"callId": callData.CallID},
-	})
-	if call.InitiatedID != userID {
-		if err := h.SendMessageToUser(call.InitiatedID, notificationPayload); err != nil {
-			log.Printf("Failed to notify caller %s about call rejection: %v", userID, err)
-		}
-	} else {
-		if err := h.SendMessageToUser(call.CalleeID, notificationPayload); err != nil {
-			log.Printf("Failed to notify callee %s about call rejection: %v", userID, err)
-		}
-	}
-}
-
-func (h *WsNotificationHandler) SendMessageToUser(userID uuid.UUID, msg []byte) error {
-	h.mu.Lock()
-	userConnections, ok := h.connections[userID]
-	h.mu.Unlock()
-	log.Printf("userConnections: %v", userConnections)
-
-	if !ok {
-		return fmt.Errorf("user %s is not connected, no connections found", userID)
-	}
-
-	// Lặp qua tất cả các kết nối của user và gửi tin nhắn
-	for connID, client := range userConnections {
-		log.Printf("Sending message to user [%s] on connection [%s]", userID, connID)
-		client.send <- msg
-	}
-	return nil
-}
-
-type WebRTCSignalData struct {
-	TargetID string          `json:"targetId"`
-	Payload  json.RawMessage `json:"payload"`
-}
-
-func (h *WsNotificationHandler) handleWebRTCSignal(senderID uuid.UUID, event string, data json.RawMessage) {
-	var signalData WebRTCSignalData
-	log.Println("event: ", event)
-	if err := json.Unmarshal(data, &signalData); err != nil {
-		log.Printf("Error parsing WebRTC signal data from %s: %v", senderID, err)
-		return
-	}
-
-	targetID, err := uuid.Parse(signalData.TargetID)
-	if err != nil {
-		log.Printf("Invalid TargetID '%s' in WebRTC signal from %s", signalData.TargetID, senderID)
-		return
-	}
-
-	payloadToSend, err := json.Marshal(map[string]interface{}{
-		"event": event,
-		"data": map[string]interface{}{
-			"senderId": senderID.String(),
-			"payload":  signalData.Payload,
+	// Gửi thông báo người mới vào cho người mới
+	welcomeNotification, _ := json.Marshal(ServerMessage{
+		Event: "room-joined",
+		Data: map[string]interface{}{
+			"roomId":       r.id,
+			"participants": allParticipantIDs,
 		},
 	})
-	if err != nil {
-		log.Printf("Error marshaling WebRTC signal data from %s: %v", senderID, err)
-		return
-	}
+	joinedParticipant.send <- welcomeNotification
+}
 
-	if err := h.SendMessageToUser(targetID, payloadToSend); err != nil {
-		log.Printf("Failed to forward WebRTC signal from %s to %s: %v", senderID, targetID, err)
+// Gửi thông báo có người rời đi đến những người còn lại.
+func (r *Room) notifyParticipantLeft(leftParticipant *Participant) {
+	notification, _ := json.Marshal(ServerMessage{
+		Event: "participant-left",
+		Data:  map[string]string{"leftId": leftParticipant.userID},
+	})
+
+	for participant := range r.participants {
+		select {
+		case participant.send <- notification:
+		default:
+			close(participant.send)
+			delete(r.participants, participant)
+		}
 	}
 }

@@ -59,7 +59,7 @@ func (s *Server) MapHandlers() error {
 
 	callRepo := signalingRepo.NewPostgresRepository(s.db)
 	callUC := signalingUC.NewUseCase(s.cfg, callRepo, s.logger)
-	wsNotificationHandler := signalingWs.NewWsNotificationHandler(callUC)
+	wsNotificationHandler := signalingWs.NewWsNotificationHandler()
 	callREST := signalingHttp.NewHandler(callUC, wsNotificationHandler, s.logger)
 
 	redisClient := redis.NewClient(&redis.Options{
@@ -106,7 +106,7 @@ func (s *Server) MapHandlers() error {
 	signalingHttp.MapRoutes(signalingGroup, callREST, mw)
 
 	// Đăng ký route signaling WebSocket
-	v1.GET("/call/ws/notifications", wsNotificationHandler.ServeWsNotifications)
+	v1.GET("/call/ws/notifications", wsNotificationHandler.ServeWs)
 
 	return nil
 }
